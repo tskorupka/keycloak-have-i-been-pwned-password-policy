@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.5.0
+    command: start-dev
+    ports:
+      - "8080:8080"
+      - "8787:8787"
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - DEBUG_PORT=8787
+    volumes:
+      - ./target/keycloak-have-i-been-pwned-password-policy-1.0-SNAPSHOT.jar:/opt/keycloak/providers/keycloak-have-i-been-pwned-password-policy-1.0-SNAPSHOT.jar
