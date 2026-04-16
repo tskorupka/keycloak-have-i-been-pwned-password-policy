@@ -12,7 +12,7 @@ A custom Keycloak password policy that checks if a password has been leaked in a
 ## Requirements
 
 - **Java**: 17 or higher
-- **Keycloak**: 26.5.0 or higher (compatible versions)
+- **Keycloak**: 26.6.1 or higher (compatible versions)
 - **Maven**: For building from source
 
 ## Build
