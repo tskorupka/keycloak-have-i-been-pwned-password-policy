@@ -1,5 +1,6 @@
 package com.github.tskorupka.keycloak.policy;
 
+import org.jboss.logging.Logger;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -16,11 +17,13 @@ import java.util.HexFormat;
 
 public class HaveIBeenPwnedPasswordPolicyProvider implements PasswordPolicyProvider {
 
-    private final KeycloakSession session;
+    private static final Logger logger = Logger.getLogger(HaveIBeenPwnedPasswordPolicyProvider.class);
     private static final String HIBP_URL = "https://api.pwnedpasswords.com/range/";
     private static final HttpClient client = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
+
+    private final KeycloakSession session;
 
     public HaveIBeenPwnedPasswordPolicyProvider(KeycloakSession session) {
         this.session = session;
@@ -28,7 +31,8 @@ public class HaveIBeenPwnedPasswordPolicyProvider implements PasswordPolicyProvi
 
     @Override
     public PolicyError validate(RealmModel realm, UserModel user, String password) {
-        int threshold = session.getContext().getRealm().getPasswordPolicy()
+        RealmModel effectiveRealm = realm != null ? realm : session.getContext().getRealm();
+        int threshold = effectiveRealm.getPasswordPolicy()
                 .getPolicyConfig(HaveIBeenPwnedPasswordPolicyProviderFactory.ID);
 
         try {
@@ -49,19 +53,18 @@ public class HaveIBeenPwnedPasswordPolicyProvider implements PasswordPolicyProvi
                 for (String line : body.split("\r?\n")) {
                     String[] parts = line.split(":");
                     if (parts.length == 2 && parts[0].equals(suffix)) {
-                        int count = Integer.parseInt(parts[1]);
+                        int count = Integer.parseInt(parts[1].trim());
                         if (count > threshold) {
+                            logger.warnf("Password rejected: found %d time(s) in Have I Been Pwned database (threshold: %d)", count, threshold);
                             return new PolicyError("passwordIsPwned", count);
                         }
                     }
                 }
+            } else {
+                logger.errorf("Have I Been Pwned API returned unexpected status code: %d", response.statusCode());
             }
         } catch (Exception e) {
-            // In case of API failure, we might want to allow the password or block it.
-            // Usually, allowing it is safer to not block users due to external service
-            // downtime.
-            // Logging would be good here.
-            e.printStackTrace();
+            logger.error("Failed to check password against Have I Been Pwned API, allowing password", e);
         }
 
         return null;
